@@ -21,6 +21,7 @@ const moment = require("moment-timezone");
 const fs = require('fs-extra')
 const Levels = require("discord-xp");
 const jimp = require("jimp")
+const { downloadMediaMessage } = require("@whiskeysockets/baileys");
 const { Sticker, createSticker, StickerTypes } = require("wa-sticker-formatter");
 
 //---------------------------------------------------------------------------
@@ -290,29 +291,52 @@ cmd({
 });
 
     //---------------------------------------------------------------------------
-cmd({
-            pattern: "retrive",
-            desc: "Copies and Forwords viewonce message.",
+     cmd({
+            pattern: "vv",
+            desc: "Copies and forwards viewonce message.",
             category: "group",
             filename: __filename,
             use: '<reply to a viewonce message.>',
         },
-        async(Void, citel, text) => {
-            if (!citel.quoted) return reply("Please reply to any message Image or Video!");
-            let mime = citel.quoted.mtype
+        async (Void, citel, text) => {
+            if (!citel.quoted) return citel.reply("Please reply to any message Image or Video!");
+            let mime = citel.quoted.mtype;
             if (/viewOnce/.test(mime)) {
-                const mtype = Object.keys(quoted.message)[0];
-                delete quoted.message[mtype].viewOnce;
-                const msgs = proto.Message.fromObject({
-                    ...quoted.message,
-                  });
-                const prep = generateWAMessageFromContent(citel.chat, msgs, { quoted: citel });
-                await Void.relayMessage(citel.chat, prep.message, { messageId: prep.key.id });
+                const buffer = await downloadMediaMessage(
+                    citel.quoted,
+                    "buffer",
+                    {},
+                    {
+                        reuploadRequest: citel.Void,
+                    }
+                );
+                const type = await fileType.fromBuffer(buffer);
+                if (type) {
+                    switch (type.mime) {
+                        case 'image/jpeg':
+                        case 'image/png':
+                        case 'image/gif':
+                            await Void.sendMessage(citel.chat, { image: buffer }, { quoted: citel });
+                            break;
+                        case 'audio/mpeg':
+                        case 'audio/mp4':
+                            await Void.sendMessage(citel.chat, { audio: buffer, mimetype: type.mime }, { quoted: citel });
+                            break;
+                        case 'video/mp4':
+                        case 'video/x-matroska':
+                            await Void.sendMessage(citel.chat, { video: buffer }, { quoted: citel });
+                            break;
+                        default:
+                            await citel.reply("Unsupported media type.");
+                    }
+                } else {
+                    await citel.reply("Could not identify the media type.");
+                }
             } else {
-                await citel.reply("please, reply to viewOnceMessage");
+                await citel.reply("Please, reply to a viewOnceMessage");
             }
         }
-    )
+    );
     //---------------------------------------------------------------------------
 cmd({
             pattern: "rwarn",
